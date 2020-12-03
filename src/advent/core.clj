@@ -57,5 +57,20 @@
         valid-passwords (filter #(valid-password2? %) parsed-passwords)]
     (count valid-passwords)))
 
+(defn day3_1 [test-data row-step col-step]
+  (loop [num-trees 0
+         row 0
+         col 0]
+    (if (empty? (get test-data row))
+      num-trees
+      (let [tree-row (get test-data row)
+            is-tree? (= \# (nth tree-row col))
+            trees-found (if is-tree? (inc num-trees) num-trees)]
+        (recur trees-found (+ row row-step) (mod (+ col col-step) (count tree-row)))))))
+
+(defn day3_2 [test-data]
+  (reduce * (map #(day3_1 test-data (first %1) (first (rest %1))) '((1 1) (1 3) (1 5) (1 7) (2 1)))))
+
+
 (defn -main [& args]
-  (println "hello moo! " (day2_2 (split-file "resources/day2.input"))))
+  (println "hello moo! " (day3_2 (split-file "resources/day3.input"))))
