@@ -126,5 +126,55 @@
                    (valid-issue-year? (get % "iyr"))
                    (valid-pid? (get % "pid"))) passport-candidates))))
 
+(defn get-row-code [code]
+  (subs code 0 7))
+
+(defn get-col-code [code]
+  (subs code 7))
+
+(defn get-range-for-code [code the-range lower-half-char upper-half-char]
+  (let [lower-bound (first the-range)
+        upper-bound (first (rest the-range))]
+    (cond (= lower-half-char code) (list lower-bound (dec (+ lower-bound (/ (- (inc upper-bound) lower-bound) 2))))
+          (= upper-half-char code) (list (+ lower-bound (/ (- (inc upper-bound) lower-bound) 2)) upper-bound))))
+
+(defn get-row [row-code]
+  (first
+   (loop [codes row-code
+          the-range '(0 127)]
+     (if (empty? codes)
+       the-range
+       (recur (rest codes) (get-range-for-code (first codes) the-range \F \B))))))
+
+(defn get-column [col-code]
+  (first
+   (loop [codes col-code
+          the-range '(0 7)]
+     (if (empty? codes)
+       the-range
+       (recur (rest codes) (get-range-for-code (first codes) the-range \L \R))))))
+
+(defn get-seat-id [boarding-pass]
+  (let [row (get-row (get-row-code boarding-pass))
+        column (get-column (get-col-code boarding-pass))]
+    (list row column (+ column (* 8 row)))))
+
+(defn day5_1 []
+  (let [seat-ids (map #(get-seat-id %) (split-file "resources/day5.input"))]
+    (apply max (map #(first (rest (rest %))) seat-ids))))
+
+(defn get-seat-coord [boarding-pass]
+  (let [row (get-row (get-row-code boarding-pass))
+        column (get-column (get-col-code boarding-pass))]
+    (list row column)))
+
+(defn day5_2 []
+  (let [seat-ids (map #(get-seat-id %) (split-file "resources/day5.input"))]
+    (filter (fn [seat-id]
+              (let [seat-id-val (first (rest (rest seat-id)))
+                    row (first seat-id)
+                    col (first (rest seat-id))]
+                (or (= 713 seat-id-val) (= 715 seat-id-val)))) seat-ids)))
+
 (defn -main [& args]
-  (println "hello moo! " (day4_2 (slurp "resources/day4.input"))))
+  (println "hello moo! " (day5_2)))
