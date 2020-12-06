@@ -154,6 +154,7 @@
        the-range
        (recur (rest codes) (get-range-for-code (first codes) the-range \L \R))))))
 
+
 (defn get-seat-id [boarding-pass]
   (let [row (get-row (get-row-code boarding-pass))
         column (get-column (get-col-code boarding-pass))]
@@ -175,6 +176,17 @@
                     row (first seat-id)
                     col (first (rest seat-id))]
                 (or (= 713 seat-id-val) (= 715 seat-id-val)))) seat-ids)))
+
+(defn day6_1 []
+  (let [raw-test-data (slurp "resources/day6.input")]
+    (reduce + (map count (map #(into #{} %) (map #(clojure.string/replace % #"\n" "") (clojure.string/split raw-test-data #"\n\n")))))))
+
+(defn day6_2 []
+  (let [raw-test-data (slurp "resources/day6.input")]
+    (reduce + (map count
+                   (map #(apply set/intersection %)
+                        (map (fn [group]
+                               (map #(into #{} %) group)) (map #(clojure.string/split-lines %) (clojure.string/split raw-test-data #"\n\n"))))))))
 
 (defn -main [& args]
   (println "hello moo! " (day5_2)))
