@@ -188,5 +188,81 @@
                         (map (fn [group]
                                (map #(into #{} %) group)) (map #(clojure.string/split-lines %) (clojure.string/split raw-test-data #"\n\n"))))))))
 
+(defn parse-bags [raw-input]
+  (reduce into (map #(assoc {} (first %) (first (rest %)))
+                    (map (fn [rule]
+                           (let [[a-key the-values] rule]
+                             (list (clojure.string/replace a-key #" bags " "")
+                                   (map (fn [a-value]
+                                          (clojure.string/trim (clojure.string/replace a-value #"bag?.*" ""))) the-values))))
+                         (map (fn [a-vector]
+                                (let [[a-key the-values] a-vector]
+                                  (list a-key (clojure.string/split the-values #",")))) (map #(clojure.string/split % #"contain") raw-input))))))
+
+(def test-line "light red bags contain 1 bright white bag, 2 muted yellow bags.")
+
+;;got stuck, looked at solution from https://www.youtube.com/watch?v=uujzvDnEXp0
+(defn parse-bag-entry [entry]
+  (let [[bag & deps] (clojure.string/split entry #"\s?(contain|,)\s?")
+        bag-color (re-find #"\w+ \w+" bag)]
+    [bag-color (keep (comp next (partial re-find #"(\d+) (\w+ \w+)")) deps)]))
+
+(defn bag-color-graph [entries]
+  (reduce (fn [m [bag deps]]
+            (reduce (fn [m [num color]]
+                      (update m color conj bag)) m deps))
+          {} entries))
+
+(parse-bag-entry test-line)
+(bag-color-graph (list (parse-bag-entry test-line)))
+
+(defn add-valid [result graph color]
+  (into result (get graph color)))
+
+(defn valid-outermost [graph start]
+  (loop [result (add-valid #{} graph start)]
+    (let [result2 (reduce (fn [acc color]
+                            (add-valid acc graph color)) result result)]
+      (if (= result result2)
+        result
+        (recur result2)))))
+
+(defn day7_1 []
+  (count (valid-outermost (bag-color-graph (map parse-bag-entry (split-file "resources/day7.input"))) "shiny gold")))
+
+;;;;;;;;; part 7.2
+
+;;this outputs what I had with parse-bags fun
+(defn nesting-bag-color-graph [entries]
+  (reduce (fn [m [bag deps]]
+            (reduce (fn [m [num color]]
+                      (update m bag conj [(Long/parseLong num) color])) m deps))
+          {} entries))
+
+(def test-input-pt2 "shiny gold bags contain 2 dark red bags.
+dark red bags contain 2 dark orange bags.
+dark orange bags contain 2 dark yellow bags.
+dark yellow bags contain 2 dark green bags.
+dark green bags contain 2 dark blue bags.
+dark blue bags contain 2 dark violet bags.
+dark violet bags contain no other bags.")
+
+(nesting-bag-color-graph (map parse-bag-entry (clojure.string/split-lines test-input-pt2)))
+
+(defn color-count [graph color]
+  (let [entries (get graph color)]
+    (if (seq entries)
+      (reduce (fn [acc [num color]]
+                (+ acc (* num (color-count graph color))))
+              1
+              entries)
+      1)))
+
+(dec (color-count (nesting-bag-color-graph (map parse-bag-entry (clojure.string/split-lines test-input-pt2))) "shiny gold"))
+
+(def day7-2 (dec (color-count (nesting-bag-color-graph (map parse-bag-entry (split-file "resources/day7.input"))) "shiny gold")))
+
+day7-2
+
 (defn -main [& args]
   (println "hello moo! " (day5_2)))
