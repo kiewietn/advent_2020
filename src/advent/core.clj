@@ -262,7 +262,73 @@ dark violet bags contain no other bags.")
 
 (def day7-2 (dec (color-count (nesting-bag-color-graph (map parse-bag-entry (split-file "resources/day7.input"))) "shiny gold")))
 
-day7-2
+(def day8-demo-input (clojure.string/split-lines "nop +0
+acc +1
+jmp +4
+acc +3
+jmp -3
+acc -99
+acc +1
+jmp -4
+acc +6"))
+
+(defn parse-instruction [input]
+  (let [[instruction argument] (clojure.string/split input #" ")]
+    [instruction (Long/parseLong argument)]))
+
+(defn get-next-index-for-instruction [instruction index]
+  (cond (= "nop" (first instruction)) (inc index)
+        (= "acc" (first instruction)) (inc index)
+        (= "jmp" (first instruction)) (+ (nth instruction 1) index)))
+
+(defn action-on-accumulator [acc instruction]
+  (if (= "acc" (first instruction)) (+ acc (nth instruction 1))
+      acc))
+
+(defn cycle-catcher [instructions]
+  (loop [visited-indeces #{}
+         current-index 0
+         acc 0]
+    (if (contains? visited-indeces current-index)
+      acc
+      (let [instruction (parse-instruction (nth instructions current-index))
+            next-index (get-next-index-for-instruction instruction current-index)]
+        (recur (conj visited-indeces current-index) next-index (action-on-accumulator acc instruction))))))
+
+(defn has-instruction-at-index? [instructions index]
+  (< index (count instructions)))
+
+(defn run-to-end [instructions]
+  (loop [visited-indeces #{}
+         current-index 0
+         acc 0]
+    (cond (contains? visited-indeces current-index)
+      "cycle detected"
+      (not (has-instruction-at-index? instructions current-index)) acc
+      :else (let [instruction (nth instructions current-index)
+            next-index (get-next-index-for-instruction instruction current-index)]
+        (recur (conj visited-indeces current-index) next-index (action-on-accumulator acc instruction))))))
+
+(defn toggle-instruction-at-index [instructions index]
+  (let [instruction (nth instructions index)]
+    (cond (= "nop" (first instruction)) (assoc instructions index ["jmp" (nth instruction 1)])
+          (= "jmp" (first instruction)) (assoc instructions index ["nop" (nth instruction 1)])
+          :else instructions)))
+
+(defn day8-1 [instructions]
+  (cycle-catcher instructions))
+
+;;from cycle-catcher function for initial input
+(def visited-indeces #{0 558 453 586 291 443 70 62 580 430 370 110 311 377 213 472 7 473 466 454 205 459 175 322 1 24 490 55 568 206 39 345 4 550 204 77 197 405 518 119 319 293 329 144 504 505 176 54 307 517 137 234 15 242 251 585 437 516 159 429 309 458 31 136 139 460 581 174 363 284 305 514 214 442 561 235 304 40 467 445 317 294 364 515 412 308 56 500 168 347 501 237 292 143 247 474 551 376 316 303 560 310 567 238 196 162 461 541 243 29 348 539 28 608 538 411 64 465 334 323 198 155 295 587 285 590 489 436 588 17 3 536 332 330 544 2 236 373 142 359 371 444 537 566 215 277 19 609 452 431 9 457 145 244 245 378 446 404 283 138 346 333 53 559 78 562 542 315 203 321 320 133 81 79 173 421 582 160 30 10 499 270 543 271 18 403 52 209 161 372 406 71 579 80 591 37 63 212 362 8})
+
+(defn flip-instruction-test [instructions]
+  (reduce (fn [acc index]
+            (conj acc (run-to-end (toggle-instruction-at-index instructions index))))
+          '()
+          visited-indeces))
+
+(defn day8-2 []
+  (filter #(not (= "cycle detected" %)) (flip-instruction-test (vec (map parse-instruction (split-file "resources/day8.input"))))))
 
 (defn -main [& args]
   (println "hello moo! " (day5_2)))
