@@ -330,5 +330,59 @@ acc +6"))
 (defn day8-2 []
   (filter #(not (= "cycle detected" %)) (flip-instruction-test (vec (map parse-instruction (split-file "resources/day8.input"))))))
 
-(defn -main [& args]
-  (println "hello moo! " (day5_2)))
+(def day9-test-input (map #(Long/parseLong %) (clojure.string/split-lines "35
+20
+15
+25
+47
+40
+62
+55
+65
+95
+102
+117
+150
+182
+127
+219
+299
+277
+309
+576")))
+
+(defn sliding-window [coll window]
+  (loop [acc []
+         remaining coll]
+    (if (or (> window (count remaining)) (empty? remaining))
+      acc
+      (recur (conj acc (take window remaining)) (drop 1 remaining)))))
+
+(defn find-outlier [input pre-amble-size]
+  (reduce (fn [acc window]
+            (if (empty? (let [under-test (last window)
+                              pre-amble (take pre-amble-size window)
+                              diff (into #{} (map #(- under-test %) pre-amble))]
+                          (clojure.set/intersection (into #{} pre-amble) diff)))
+              (conj acc (last window))
+              acc))
+          '() (sliding-window input (inc pre-amble-size))))
+
+(defn day9-1 []
+  (find-outlier (map #(Long/parseLong %) (split-file "resources/day9.input")) 25))
+
+
+(defn max-sequence [target input]
+  (let [sums (for [window-size (take (dec (count input)) (reverse (range (count input))))
+                   :let [sum (filter #(= target (apply + %)) (sliding-window input window-size))]
+                   :when (not (empty? sum))]
+               sum)]
+    (:seq (apply max-key :size (map #(let [element (first %)
+                                      size (count element)]
+                                  {:size size :seq element}) sums)))))
+
+(defn day9-2 [target input]
+  (let [max-seqs (max-sequence target input)
+        the-min (apply min max-seqs)
+        the-max (apply max max-seqs)]
+    (+ the-min the-max)))
