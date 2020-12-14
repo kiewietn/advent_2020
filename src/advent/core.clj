@@ -386,3 +386,152 @@ acc +6"))
         the-min (apply min max-seqs)
         the-max (apply max max-seqs)]
     (+ the-min the-max)))
+
+(defn day10-1 []
+  (let [sorted-input (sort (map #(Long/parseLong %) (split-file "resources/day10.input")))]
+    (frequencies (cons 3 (cons (first sorted-input) (map #(- %2 %1) sorted-input (rest sorted-input)))))))
+
+(def day11-input (split-file "resources/day11.input"))
+
+(def day11-test-input (clojure.string/split-lines "L.LL.LL.LL
+LLLLLLL.LL
+L.L.L..L..
+LLLL.LL.LL
+L.LL.LL.LL
+L.LLLLL.LL
+..L.L.....
+LLLLLLLLLL
+L.LLLLLL.L
+L.LLLLL.LL"))
+
+;;x is columns
+;;y is rows
+
+(def coord-map (let [input day11-input]
+                 (reduce (fn [acc entry]
+                           (assoc acc (first entry) (first (rest entry))))
+                         {}
+                         (for [k (range (count (first input)))
+                               r (range (count input))
+                               :let [row (nth input r)]]
+                           (list (list r k) (nth row k))))))
+
+(defn get-elements-around-point [point coord-map]
+  (filter #(not (= nil %))
+          (let [current-x (first point)
+                current-y (first (rest point))]
+            (for [x (range (dec current-x) (+ 2 current-x))
+                  y (range (dec current-y) (+ 2 current-y))
+                  :when (not (and (= current-x x) (= current-y y)))]
+              (get coord-map (list x y))))))
+
+(defn get-next-state-for-point [point coord-map]
+  (let [element-at-point (get coord-map point)
+        surroundings (get-elements-around-point point coord-map)]
+    (cond (and (= \L element-at-point) (not-any? #(= \# %) surroundings)) \#
+          (and (= \# element-at-point) (> (count (filter #(= \# %) surroundings)) 3)) \L
+          :else element-at-point)))
+
+(defn get-max-rows [coord-map]
+  (apply max (map #(first %) (keys coord-map))))
+
+(defn get-max-cols [coord-map]
+  (apply max (map #(first (rest %)) (keys coord-map))))
+
+(defn get-coordinates-N-of-point [point coord-map]
+  (for [offset (range (inc (first point)))
+        :when (not (= 0 offset))]
+    (list (- (first point) offset) (first (rest point)))))
+
+(defn get-coordinates-S-of-point [point coord-map]
+  (for [offset (range (first point) (inc (get-max-rows coord-map)))
+        :when (not (= (first point) offset))]
+    (list offset (first (rest point)))))
+
+(defn get-coordinates-E-of-point [point coord-map]
+  (for [offset (range (first (rest point)) (inc (get-max-cols coord-map)))
+        :when (not (= (first (rest point)) offset))]
+    (list (first point) offset)))
+
+(defn get-coordinates-W-of-point [point coord-map]
+  (for [offset (range (inc (first (rest point))))
+        :when (not (= (first (rest point)) offset))]
+    (list (first point) offset)))
+
+(defn get-coordinates-NW-of-point [point coord-map]
+  (for [offset (range (inc (first point)))
+        :when (not (or (= 0 offset) (< (- (first (rest point)) offset) 0)))]
+    (list (- (first point) offset) (- (first (rest point)) offset))))
+
+(defn get-coordinates-NE-of-point [point coord-map]
+  (for [offset (range (inc (first point)))
+        :when (not (or (= 0 offset) (> (+ (first (rest point)) offset) (get-max-cols coord-map))))]
+    (list (- (first point) offset) (+ (first (rest point)) offset))))
+
+(defn get-coordinates-SE-of-point [point coord-map]
+  (for [offset (range (first point) (inc (get-max-rows coord-map)))
+        :when (not (or (= (first point) offset) (> (+ (first (rest point)) (- offset (first point))) (get-max-cols coord-map))))]
+    (list offset (+ (first (rest point)) (- offset (first point))))))
+
+(defn get-coordinates-SW-of-point [point coord-map]
+  (for [offset (range (first point) (inc (get-max-rows coord-map)))
+        :when (not (or (= (first point) offset) (< (- (first (rest point)) (- offset (first point))) 0)))]
+    (list offset (- (first (rest point)) (- offset (first point))))))
+
+(defn get-entries-in-all-directions [point coord-map]
+  (map #(select-keys coord-map %) (map #(% point coord-map) (list get-coordinates-N-of-point
+                                                                get-coordinates-E-of-point
+                                                                get-coordinates-S-of-point
+                                                                get-coordinates-W-of-point
+                                                                get-coordinates-NW-of-point
+                                                                get-coordinates-NE-of-point
+                                                                get-coordinates-SE-of-point
+                                                                get-coordinates-SW-of-point))))
+
+(defn distance-between-points [point1 point2]
+  (let [delta-x (- (first point2) (first point1))
+        delta-y (- (first (rest point2)) (first (rest point1)))]
+    (+ (* delta-x delta-x) (* delta-y delta-y))))
+
+(defn get-elements-surrounding-los [point coord-map]
+  (filter #(not (= nil %))
+          (map #(first (rest %)) (map first (map (fn [elements]
+                                                   (sort
+                                                    #(compare (distance-between-points point (key %1))
+                                                              (distance-between-points point (key %2))) elements))
+                                                 (map #(filter (fn [entry]
+                                                                 (not (= \. (val entry)))) %)
+                                                      (get-entries-in-all-directions point coord-map)))))))
+
+(defn day11-1 []
+  (count
+   (filter #(= \# %)
+           (vals (loop [seating-plan coord-map]
+                   (let [next-iter
+                         (reduce-kv (fn [m k v]
+                                      (assoc m k (get-next-state-for-point k seating-plan)))
+                                    {}
+                                    seating-plan)]
+                     (if (= next-iter seating-plan)
+                       next-iter
+                       (recur next-iter))))))))
+
+(defn get-next-state-for-point-part-2 [point coord-map]
+  (let [element-at-point (get coord-map point)
+        surroundings (get-elements-surrounding-los point coord-map)]
+    (cond (and (= \L element-at-point) (not-any? #(= \# %) surroundings)) \#
+          (and (= \# element-at-point) (> (count (filter #(= \# %) surroundings)) 4)) \L
+          :else element-at-point)))
+
+(defn day11-2 []
+  (count
+   (filter #(= \# %)
+           (vals (loop [seating-plan coord-map]
+                   (let [next-iter
+                         (reduce-kv (fn [m k v]
+                                      (assoc m k (get-next-state-for-point-part-2 k seating-plan)))
+                                    {}
+                                    seating-plan)]
+                     (if (= next-iter seating-plan)
+                       next-iter
+                       (recur next-iter))))))))
