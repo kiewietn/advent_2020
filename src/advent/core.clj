@@ -495,13 +495,14 @@ L.LLLLL.LL"))
 
 (defn get-elements-surrounding-los [point coord-map]
   (filter #(not (= nil %))
-          (map #(first (rest %)) (map first (map (fn [elements]
-                                                   (sort
-                                                    #(compare (distance-between-points point (key %1))
-                                                              (distance-between-points point (key %2))) elements))
-                                                 (map #(filter (fn [entry]
-                                                                 (not (= \. (val entry)))) %)
-                                                      (get-entries-in-all-directions point coord-map)))))))
+          (map #(first (rest %))
+               (map first (map (fn [elements]
+                                 (sort
+                                  #(compare (distance-between-points point (key %1))
+                                            (distance-between-points point (key %2))) elements))
+                               (map #(filter (fn [entry]
+                                               (not (= \. (val entry)))) %)
+                                    (get-entries-in-all-directions point coord-map)))))))
 
 (defn day11-1 []
   (count
@@ -535,3 +536,83 @@ L.LLLLL.LL"))
                      (if (= next-iter seating-plan)
                        next-iter
                        (recur next-iter))))))))
+
+(def day12-example (clojure.string/split-lines
+                    "F10
+N3
+F7
+R90
+F11"))
+
+(defn parse-commands
+  ([]
+   (parse-commands day12-example))
+  ([raw-input]
+   (map #(let [command (subs % 0 1)
+               arg (Long/parseLong (subs % 1))]
+           [command arg]) raw-input)))
+
+(defn handle-f-command [current-pos arg]
+  (let [heading (:heading current-pos)]
+    (cond (= "E" heading) (update-in current-pos [:pos :east] #(+ % arg))
+          (= "W" heading) (update-in current-pos [:pos :east] #(- % arg))
+          (= "S" heading) (update-in current-pos [:pos :north] #(- % arg))
+          (= "N" heading) (update-in current-pos [:pos :north] #(+ % arg)))))
+
+(def degrees-for-heading {"E" 90 "N" 0 "W" 270 "S" 180})
+(def heading-for-degrees {90 "E" 0 "N" 270 "W" 180 "S"})
+
+(def day12-1-pos (reduce (fn [current-pos instruction]
+                         (let [command (first instruction)
+                               arg (first (rest instruction))]
+                           (cond (= "F" command) (handle-f-command current-pos arg)
+                                 (= "N" command) (update-in current-pos [:pos :north] #(+ % arg))
+                                 (= "R" command) (let [heading (:heading current-pos)]
+                                                   (update-in current-pos [:heading] #(heading-for-degrees (mod (+ arg (degrees-for-heading %)) 360))))
+                                 (= "L" command) (let [heading (:heading current-pos)]
+                                                   (update-in current-pos [:heading] #(heading-for-degrees (mod (- (degrees-for-heading %) arg) 360))))
+                                 (= "E" command) (update-in current-pos [:pos :east] #(+ % arg))
+                                 (= "W" command) (update-in current-pos [:pos :east] #(- % arg))
+                                 (= "S" command) (update-in current-pos [:pos :north] #(- % arg))
+                                 :else (throw (Throwable. (str "invalid command " command))))))
+                       {:heading "E" :pos {:north 0 :east 0}}
+                       (parse-commands)))
+
+(defn get-distance [position]
+  (let [north (get-in position [:ship :north])
+        east (get-in position [:ship :east])]
+    (+ (Math/abs north) (Math/abs east))))
+
+(get-distance day12-1-pos)
+
+(defn handle-f-command2 [ship-with-waypoint arg]
+  (let [ship-pos (get ship-with-waypoint :ship)
+        waypoint-pos (get ship-with-waypoint :waypoint)]
+    (update ship-with-waypoint :ship #(let [north (get % :north)
+                                            east (get % :east)]
+                                        {:north (+ north (* arg (get waypoint-pos :north)))
+                                         :east (+ east (* arg (get waypoint-pos :east)))}))))
+
+
+(defn rotate-by-90 [ship-with-waypoint]
+  (let [waypoint-pos (get ship-with-waypoint :waypoint)]
+    (update ship-with-waypoint :waypoint #(let [x (get % :east)
+                                                y (get % :north)]
+                                            {:north (- x)
+                                             :east y}))))
+
+(def day12-2-pos (reduce (fn [ship-with-waypoint instruction]
+                         (let [command (first instruction)
+                               arg (first (rest instruction))]
+                           (cond (= "F" command) (handle-f-command2 ship-with-waypoint arg)
+                                 (= "N" command) (update-in ship-with-waypoint [:waypoint :north] #(+ % arg))
+                                 (= "R" command) (last (take (inc (/ arg 90)) (iterate rotate-by-90 ship-with-waypoint)))
+                                 (= "L" command) (last (take (inc (/ (- 360 arg) 90)) (iterate rotate-by-90 ship-with-waypoint)))
+                                 (= "E" command) (update-in ship-with-waypoint [:waypoint :east] #(+ % arg))
+                                 (= "W" command) (update-in ship-with-waypoint [:waypoint :east] #(- % arg))
+                                 (= "S" command) (update-in ship-with-waypoint [:waypoint :north] #(- % arg))
+                                 :else (throw (Throwable. (str "invalid command " command))))))
+                       {:waypoint {:north 1 :east 10} :ship {:north 0 :east 0}}
+                       (parse-commands (split-file "resources/day12.input"))))
+
+(get-distance day12-2-pos)
