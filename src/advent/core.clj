@@ -583,7 +583,7 @@ F11"))
         east (get-in position [:ship :east])]
     (+ (Math/abs north) (Math/abs east))))
 
-(get-distance day12-1-pos)
+#_(get-distance day12-1-pos)
 
 (defn handle-f-command2 [ship-with-waypoint arg]
   (let [ship-pos (get ship-with-waypoint :ship)
@@ -616,3 +616,33 @@ F11"))
                        (parse-commands (split-file "resources/day12.input"))))
 
 (get-distance day12-2-pos)
+
+(defn parse-buses
+  ([] (parse-buses (clojure.string/split-lines "939
+7,13,x,x,59,x,31,19")))
+  ([raw-input] (let [lines raw-input]
+                 {:target (Long/parseLong (first lines)) :buses (map #(Long/parseLong %)
+                                                                     (filter #(re-find #"\d+" %)
+                                                                             (clojure.string/split
+                                                                              (first (rest lines))
+                                                                              #",")))})))
+
+(defn find-next-departure [target bus]
+  (first
+   (sort
+    (filter #(>= % target)
+            (for [x (range (- target bus) (+ target bus))
+                  :when (= 0 (mod x bus))]
+              x)))))
+
+(defn day13-1 []
+  (let [test-buses (parse-buses (split-file "resources/day13.input"))
+        target (:target test-buses)
+        [id departure] (first
+                        (sort-by val
+                                 (let [buses (:buses test-buses)]
+                                   (reduce (fn [bus-to-departure bus]
+                                             (assoc bus-to-departure bus (find-next-departure target bus)))
+                                           {}
+                                           buses))))]
+    (* id (- departure target))))
